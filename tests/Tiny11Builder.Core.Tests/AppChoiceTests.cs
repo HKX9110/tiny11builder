@@ -47,7 +47,7 @@ public sealed class AppChoiceTests
             var owner = servicing.Operations.Take(index).Last(o => o.Id.StartsWith("stage:", StringComparison.Ordinal));
             Assert.Equal(row.Stage, owner.Stage);
         }
-        Assert.All(run.Board.Stages, stage => Assert.Equal("Complete", stage.Status));
+        Assert.All(run.Board.Stages, stage => Assert.Equal("已完成", stage.Status));
     }
 
     [Fact]
@@ -67,9 +67,9 @@ public sealed class AppChoiceTests
         Assert.DoesNotContain("2 failed", servicing.Status);
         Assert.Contains("not run", servicing.Status);
         Assert.DoesNotContain(" next", servicing.Status);
-        Assert.All(servicing.Operations.Where(o => o.State == BuildOperationState.Pending), o => Assert.Equal("Not run", o.Status));
-        Assert.Equal("Not run", run.Board.Stages[6].Status);
-        Assert.Equal("Not run", run.Board.Stages[5].Status);
+        Assert.All(servicing.Operations.Where(o => o.State == BuildOperationState.Pending), o => Assert.Equal("未运行", o.Status));
+        Assert.Equal("未运行", run.Board.Stages[6].Status);
+        Assert.Equal("未运行", run.Board.Stages[5].Status);
     }
 
     [Fact]
@@ -81,8 +81,8 @@ public sealed class AppChoiceTests
         Assert.IsType<BuildFailureException>(run.Error);
         run.Board.Stop(cancelled: false);
         Assert.StartsWith("Failed: Create bootable ISO", run.Board.Stages[5].Status);
-        Assert.Equal("Complete", run.Board.Stages[4].Status);
-        Assert.Equal("Not run", run.Board.Stages[6].Status);
+        Assert.Equal("已完成", run.Board.Stages[4].Status);
+        Assert.Equal("未运行", run.Board.Stages[6].Status);
     }
 
     [Fact]
@@ -96,13 +96,13 @@ public sealed class AppChoiceTests
         Assert.True(OperationOutcomes.IsCancellation(OperationKind.Build, failure));
         run.Board.Stop(cancelled: true);
         // The mount had finished when the cancel was seen, so it is complete rather than relabelled as cancelled.
-        Assert.Equal("Complete", run.Board.Stages[1].Status);
-        Assert.Equal("Not run", run.Board.Stages[2].Status);
+        Assert.Equal("已完成", run.Board.Stages[1].Status);
+        Assert.Equal("未运行", run.Board.Stages[2].Status);
         Assert.DoesNotContain(run.Board.Stages.SelectMany(s => s.Operations), o => o.State == BuildOperationState.Failed);
         Assert.DoesNotContain(run.Board.Stages.SelectMany(s => s.Operations), o => o.State == BuildOperationState.Running);
         Assert.All(run.Board.Stages.SelectMany(s => s.Operations).Where(o => o.State == BuildOperationState.Pending),
             o => Assert.True(o.NotRun));
-        Assert.Equal("Not run", run.Board.Stages[5].Status);
+        Assert.Equal("未运行", run.Board.Stages[5].Status);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class AppChoiceTests
             board.Apply(new("Remove apps", "Remove " + app, OperationId: "app:" + app, State: BuildOperationState.Pending));
         board.Apply(new("Remove apps", "Remove A", OperationId: "app:A", State: BuildOperationState.Completed));
         // 1 done; next = app B plus the still-empty "Optional features" stage. The running stage row is not a unit.
-        Assert.Equal("In progress · 1 done · 2 next", board.Stages[2].Status);
+        Assert.Equal("进行中 · 已完成 1 项 · 接下来 2 项", board.Stages[2].Status);
         Assert.Equal(["stage:Remove apps", "app:A", "app:B", "stage:Optional features"], Ids(board.Stages[2]));
     }
 
@@ -203,15 +203,15 @@ public sealed class AppChoiceTests
         foreach (var stage in new[] { "Create ISO", "Verify output" })
             board.Apply(new(stage, stage, OperationId: "stage:" + stage, State: BuildOperationState.Pending));
         board.MarkEarlierPhasesDone();
-        Assert.All(board.Stages.Take(5), stage => Assert.Equal("Done earlier", stage.Status));
+        Assert.All(board.Stages.Take(5), stage => Assert.Equal("此前已完成", stage.Status));
         Assert.Equal("0 done · 1 next", board.Stages[5].Status);
         board.Stop(cancelled: false);
-        Assert.Equal("Done earlier", board.Stages[0].Status);   // stopping never relabels finished work
+        Assert.Equal("此前已完成", board.Stages[0].Status);   // stopping never relabels finished work
         board.Complete();
-        Assert.Equal("Done earlier", board.Stages[2].Status);
-        Assert.Equal("Complete", board.Stages[6].Status);
+        Assert.Equal("此前已完成", board.Stages[2].Status);
+        Assert.Equal("已完成", board.Stages[6].Status);
         board.Reset();
-        Assert.All(board.Stages, stage => Assert.Equal("Waiting", stage.Status));
+        Assert.All(board.Stages, stage => Assert.Equal("等待中", stage.Status));
     }
 
     [Fact]
@@ -239,8 +239,8 @@ public sealed class AppChoiceTests
         Assert.Contains(board.Stages[3].Operations, o => o.Id == "stage:" + BuildProgressText.ResumeCheckStage);
         board.Complete();
         // The first run had already compressed the image when the ISO step failed, so the resume never plans Compress either.
-        Assert.All(new[] { 0, 1, 2, 4 }.Select(index => board.Stages[index]), stage => Assert.Equal("Done earlier", stage.Status));
-        Assert.All(new[] { 3, 5, 6 }.Select(index => board.Stages[index]), stage => Assert.Equal("Complete", stage.Status));
+        Assert.All(new[] { 0, 1, 2, 4 }.Select(index => board.Stages[index]), stage => Assert.Equal("此前已完成", stage.Status));
+        Assert.All(new[] { 3, 5, 6 }.Select(index => board.Stages[index]), stage => Assert.Equal("已完成", stage.Status));
         Assert.Empty(built.Warnings);
     }
 
@@ -266,8 +266,8 @@ public sealed class AppChoiceTests
             new ImmediateProgress<BuildProgress>(p => { board.Apply(p); board.MarkEarlierPhasesDone(); }), CancellationToken.None);
         board.Complete();
         Assert.True(File.Exists(built.IsoPath));
-        Assert.All(board.Stages.Take(3), stage => Assert.Equal("Done earlier", stage.Status));
-        Assert.All(board.Stages.Skip(3), stage => Assert.Equal("Complete", stage.Status));
+        Assert.All(board.Stages.Take(3), stage => Assert.Equal("此前已完成", stage.Status));
+        Assert.All(board.Stages.Skip(3), stage => Assert.Equal("已完成", stage.Status));
         Assert.Contains(board.Stages[4].Operations, o => o.Id == "stage:Compress");
     }
 
@@ -302,25 +302,25 @@ public sealed class AppChoiceTests
     [Fact]
     public async Task The_history_heading_counts_the_stages_its_rows_show_as_done()
     {
-        Assert.Equal("0 of 7 stages done", StageSummary.Describe(new BuildStageBoard()));
+        Assert.Equal("已完成 0/7 个阶段", StageSummary.Describe(new BuildStageBoard()));
 
         using var finishing = new BuildFixture();
         var finished = await RunAsync(finishing, finishing.Recipe);
         Assert.Null(finished.Error);
-        Assert.Equal("All 7 stages done", StageSummary.Describe(finished.Board));
+        Assert.Equal("全部 7 个阶段已完成", StageSummary.Describe(finished.Board));
 
         using var failing = new BuildFixture();
         failing.Runner.FailIso = true;
         var failed = await RunAsync(failing, failing.Recipe);
         failed.Board.Stop(cancelled: false);
-        Assert.Equal("5 of 7 stages done · 1 failed", StageSummary.Describe(failed.Board));
+        Assert.Equal("已完成 5/7 个阶段 · 1 个失败", StageSummary.Describe(failed.Board));
 
         using var cancelling = new BuildFixture();
         using var cancel = new CancellationTokenSource();
         cancelling.Runner.OnCommand = args => { if (args.Contains("/Mount-Image")) cancel.Cancel(); };
         var cancelled = await RunAsync(cancelling, cancelling.Recipe, cancel.Token);
         cancelled.Board.Stop(cancelled: true);
-        Assert.Equal("2 of 7 stages done", StageSummary.Describe(cancelled.Board));   // the rest were not run
+        Assert.Equal("已完成 2/7 个阶段", StageSummary.Describe(cancelled.Board));   // the rest were not run
     }
 
     [Fact]
@@ -330,10 +330,10 @@ public sealed class AppChoiceTests
         foreach (var stage in new[] { "Create ISO", "Verify output" })
             board.Apply(new(stage, stage, OperationId: "stage:" + stage, State: BuildOperationState.Pending));
         board.MarkEarlierPhasesDone();
-        Assert.Equal("5 of 7 stages done", StageSummary.Describe(board));
+        Assert.Equal("已完成 5/7 个阶段", StageSummary.Describe(board));
         board.Complete();
-        Assert.Equal("All 7 stages done", StageSummary.Describe(board));
+        Assert.Equal("全部 7 个阶段已完成", StageSummary.Describe(board));
         board.Reset();
-        Assert.Equal("0 of 7 stages done", StageSummary.Describe(board));
+        Assert.Equal("已完成 0/7 个阶段", StageSummary.Describe(board));
     }
 }

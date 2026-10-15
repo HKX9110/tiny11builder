@@ -247,6 +247,22 @@ public sealed class CompatibilityTests
         Assert.DoesNotContain(values, value => value.Name == "TaskbarDa");
     }
 
+    [Fact]
+    public void Search_uses_supported_policies_without_the_protected_user_preference()
+    {
+        var values = PolicyCatalog.ForOption("search");
+        Assert.Contains(values, value => value.Hive == PolicyHive.DefaultUser &&
+            value.Key == @"Software\Policies\Microsoft\Windows\Explorer" &&
+            value.Name == "DisableSearchBoxSuggestions" && Equals(value.Value, 1));
+        Assert.Contains(values, value => value.Hive == PolicyHive.Software &&
+            value.Key == @"Policies\Microsoft\Windows\Windows Search" &&
+            value.Name == "AllowCloudSearch" && Equals(value.Value, 0));
+        Assert.Contains(values, value => value.Hive == PolicyHive.Software &&
+            value.Key == @"Policies\Microsoft\Windows\Windows Search" &&
+            value.Name == "EnableDynamicContentInWSB" && Equals(value.Value, 0));
+        Assert.DoesNotContain(values, value => value.Name == "IsDynamicSearchBoxEnabled");
+    }
+
     [Theory]
     [InlineData(@"C:\Windows")]
     [InlineData(@"C:\")]
